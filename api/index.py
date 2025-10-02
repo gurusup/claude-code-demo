@@ -11,7 +11,7 @@ from .utils.prompt import ClientMessage, convert_to_openai_messages
 from .utils.tools import get_current_weather
 
 
-load_dotenv(".env.local")
+load_dotenv(".env")
 
 app = FastAPI()
 
@@ -145,6 +145,8 @@ def stream_text(messages: List[ChatCompletionMessageParam], protocol: str = 'dat
 
 @app.post("/api/chat")
 async def handle_chat_data(request: Request, protocol: str = Query('data')):
+
+    print("ghola")
     messages = request.messages
     openai_messages = convert_to_openai_messages(messages)
 

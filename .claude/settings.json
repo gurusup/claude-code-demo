@@ -1,0 +1,73 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir:*)",
+      "Bash(uv:*)",
+      "Bash(find:*)",
+      "Bash(mv:*)",
+      "Bash(grep:*)",
+      "Bash(npm:*)",
+      "Bash(ls:*)",
+      "Bash(cp:*)",
+      "Write",
+      "Edit",
+      "Bash(touch:*)",
+      "Bash(pip install:*)",
+      "Bash(uvicorn:*)",
+      "Bash(git worktree:*)",
+      "Bash(npx tsc:*)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_type",
+      "mcp__playwright__browser_click",
+      "mcp__playwright__browser_wait_for",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__playwright__browser_resize",
+      "mcp__playwright__browser_console_messages",
+      "mcp__shadcn__get_items",
+      "mcp__playwright__browser_close",
+      "mcp__shadcn-components__list_components",
+      "mcp__shadcn-components__get_component_metadata",
+      "mcp__shadcn-components__get_component_demo",
+      "mcp__shadcn-components__list_blocks",
+      "mcp__shadcn-components__get_block",
+      "mcp__playwright__browser_tab_new"
+    ],
+    "deny": []
+  },
+  "enabledMcpjsonServers": ["context7", "sequentialthinking", "playwright", "shadcn"],
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "say 'All done'",
+            "timeout": 120
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "say 'Subagent finished'",
+            "timeout": 120
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": ".claude/hooks/on-notification-say.sh",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}

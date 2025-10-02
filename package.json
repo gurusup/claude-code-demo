@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "fastapi-dev": "pip3 install -r requirements.txt && python3 -m uvicorn api.index:app --reload",
+    "fastapi-dev": "pip3 install -r requirements.txt && python3 -m uvicorn api.main:app --reload",
     "next-dev": "next dev",
-    "dev": "concurrently \"npm run next-dev\" \"npm run fastapi-dev\"",
+    "dev": "concurrently \"yarn run next-dev\" \"yarn run fastapi-dev\"",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -39,7 +39,7 @@
     "tailwind-merge": "^2.5.4",
     "tailwindcss": "3.4.15",
     "tailwindcss-animate": "^1.0.7",
-    "types": "link:next-themes/dist/types",
+    "next-themes": "^0.2.1",
     "typescript": "5.0.4",
     "usehooks-ts": "^3.1.0"
   }
