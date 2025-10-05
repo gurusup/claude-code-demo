@@ -59,6 +59,21 @@ export class Message {
     return new Message(id, role, content, attachments, toolInvocations);
   }
 
+  static createToolMessage(
+    toolCallId: string,
+    content: string
+  ): Message {
+    const id = randomUUID();
+    const role = MessageRole.tool();
+    const messageContent = MessageContent.from(content);
+    const message = new Message(id, role, messageContent, [], []);
+
+    // Add tool call ID as metadata
+    message.addMetadata('tool_call_id', toolCallId);
+
+    return message;
+  }
+
   private validate(): void {
     // Tool messages should have non-empty content (the result)
     if (this.role.isTool() && this.content.isEmpty()) {
@@ -161,6 +176,7 @@ export class Message {
     attachments: Array<{ name: string; contentType: string; url: string }>;
     toolInvocations: Array<any>;
     timestamp: string;
+    metadata?: Record<string, unknown>;
   } {
     return {
       id: this.id,
@@ -169,6 +185,8 @@ export class Message {
       attachments: this.attachments.map(a => a.toObject()),
       toolInvocations: this.toolInvocations.map(t => t.toObject()),
       timestamp: this.timestamp.toISOString(),
+      // Include metadata if it has any entries
+      ...(this.metadata.size > 0 && { metadata: Object.fromEntries(this.metadata) }),
     };
   }
 }

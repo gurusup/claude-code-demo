@@ -35,11 +35,16 @@ export class ConversationOrchestrator {
     }
 
     // Check for unresolved tool invocations
+    // Only block if there are pending tools WITHOUT corresponding tool messages
     if (conversation.hasPendingToolInvocations()) {
-      throw new ConversationError(
-        'Cannot start new streaming while tool invocations are pending',
-        conversation.getId()
-      );
+      // Check if tool results have been added as messages
+      const hasToolResultMessages = this.checkForToolResultMessages(conversation);
+      if (!hasToolResultMessages) {
+        throw new ConversationError(
+          'Cannot start new streaming while tool invocations are pending',
+          conversation.getId()
+        );
+      }
     }
 
     const streamingResponse = StreamingResponse.create(
@@ -51,6 +56,30 @@ export class ConversationOrchestrator {
       streamingResponse,
       pendingToolInvocations: [],
     };
+  }
+
+  /**
+   * Checks if tool result messages exist for pending tool invocations
+   */
+  private checkForToolResultMessages(conversation: Conversation): boolean {
+    const messages = conversation.getMessages();
+    const lastAssistantMessage = conversation.getLastAssistantMessage();
+
+    if (!lastAssistantMessage || !lastAssistantMessage.hasToolInvocations()) {
+      return true; // No tools to check
+    }
+
+    const toolInvocations = lastAssistantMessage.getToolInvocations();
+    const assistantMessageIndex = messages.lastIndexOf(lastAssistantMessage);
+
+    // Check if there are tool messages after the assistant message
+    for (let i = assistantMessageIndex + 1; i < messages.length; i++) {
+      if (messages[i].getRole().isTool()) {
+        return true; // Found at least one tool message
+      }
+    }
+
+    return false; // No tool messages found
   }
 
   /**
@@ -83,10 +112,11 @@ export class ConversationOrchestrator {
     // Validate message
     this.messageValidator.validate(message);
 
-    // If we have a streaming response, ensure it's completed
-    if (streamingResponse && !streamingResponse.isCompleted()) {
+    // If we have a streaming response, ensure it's either completed or has tool invocations
+    // Tool invocations can be executed after the message is added but before the stream completes
+    if (streamingResponse && !streamingResponse.isCompleted() && !message.hasToolInvocations()) {
       throw new ConversationError(
-        'Streaming response must be completed before adding assistant message',
+        'Streaming response must be completed before adding assistant message without tools',
         conversation.getId()
       );
     }

@@ -6,9 +6,11 @@ import { StreamEncoder } from './StreamEncoder';
 
 export class VercelStreamAdapter implements IStreamAdapter {
   private readonly encoder: StreamEncoder;
+  private closedControllers: WeakSet<ReadableStreamDefaultController>;
 
   constructor() {
     this.encoder = new StreamEncoder();
+    this.closedControllers = new WeakSet();
   }
 
   encode(data: StreamData): Uint8Array {
@@ -75,21 +77,45 @@ export class VercelStreamAdapter implements IStreamAdapter {
   }
 
   write(controller: ReadableStreamDefaultController, data: StreamData): void {
+    // Check if controller is already closed
+    if (this.closedControllers.has(controller)) {
+      console.warn('Attempted to write to closed stream controller');
+      return;
+    }
+
     try {
       const encoded = this.encode(data);
       controller.enqueue(encoded);
     } catch (error) {
-      console.error('Failed to write to stream:', error);
-      controller.error(error);
+      // Check for "Controller is already closed" error
+      if (error instanceof Error && error.message.includes('Controller is already closed')) {
+        console.warn('Stream controller already closed, marking as closed');
+        this.closedControllers.add(controller);
+      } else {
+        console.error('Failed to write to stream:', error);
+        try {
+          controller.error(error);
+        } catch {
+          // Ignore if controller is already closed
+        }
+      }
     }
   }
 
   close(controller: ReadableStreamDefaultController): void {
+    // Check if already closed
+    if (this.closedControllers.has(controller)) {
+      console.warn('Controller already marked as closed');
+      return;
+    }
+
     try {
       controller.close();
+      this.closedControllers.add(controller);
     } catch (error) {
       // Controller might already be closed
       console.warn('Stream controller already closed:', error);
+      this.closedControllers.add(controller);
     }
   }
 

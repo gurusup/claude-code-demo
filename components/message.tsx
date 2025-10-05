@@ -46,29 +46,38 @@ export const PreviewMessage = ({
               {message.toolInvocations.map((toolInvocation) => {
                 const { toolName, toolCallId, state } = toolInvocation;
 
+                // Only render ONE widget per tool invocation based on state
+                if (toolName === "get_current_weather") {
+                  if (state === "result") {
+                    // Show the completed weather widget with data
+                    const { result } = toolInvocation;
+                    return (
+                      <div key={toolCallId}>
+                        <Weather weatherAtLocation={result} />
+                      </div>
+                    );
+                  } else {
+                    // Show loading skeleton for pending/executing states
+                    return (
+                      <div key={toolCallId} className="skeleton">
+                        <Weather />
+                      </div>
+                    );
+                  }
+                }
+
+                // Handle other tools
                 if (state === "result") {
                   const { result } = toolInvocation;
-
                   return (
                     <div key={toolCallId}>
-                      {toolName === "get_current_weather" ? (
-                        <Weather weatherAtLocation={result} />
-                      ) : (
-                        <pre>{JSON.stringify(result, null, 2)}</pre>
-                      )}
+                      <pre>{JSON.stringify(result, null, 2)}</pre>
                     </div>
                   );
                 }
-                return (
-                  <div
-                    key={toolCallId}
-                    className={cn({
-                      skeleton: ["get_current_weather"].includes(toolName),
-                    })}
-                  >
-                    {toolName === "get_current_weather" ? <Weather /> : null}
-                  </div>
-                );
+
+                // Return null for non-weather tools in pending state
+                return null;
               })}
             </div>
           )}

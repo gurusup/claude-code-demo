@@ -98,8 +98,9 @@ export class Conversation {
       );
     }
 
-    // Check for pending tool invocations
-    if (this.hasPendingToolInvocations() && !message.getRole().isTool()) {
+    // Allow tool messages when there are pending tool invocations
+    // Tool messages are the resolution of pending tool invocations
+    if (this.hasPendingToolInvocations() && !message.getRole().isTool() && !message.getRole().isAssistant()) {
       throw new ConversationError(
         'Cannot add non-tool message while tool invocations are pending',
         this.id
@@ -145,7 +146,27 @@ export class Conversation {
     const lastAssistantMessage = this.getLastAssistantMessage();
     if (!lastAssistantMessage) return false;
 
-    return !lastAssistantMessage.allToolInvocationsComplete();
+    // If no tool invocations in the last assistant message, nothing is pending
+    if (!lastAssistantMessage.hasToolInvocations()) return false;
+
+    // Check if there are tool result messages after this assistant message
+    const assistantIndex = this.messages.lastIndexOf(lastAssistantMessage);
+    const toolCallIds = lastAssistantMessage.getToolInvocations().map(t => t.getCallId());
+
+    // Count tool result messages for this assistant's tool calls
+    let resolvedToolCalls = 0;
+    for (let i = assistantIndex + 1; i < this.messages.length; i++) {
+      const message = this.messages[i];
+      if (message.getRole().isTool()) {
+        const toolCallId = message.getMetadata('tool_call_id') as string;
+        if (toolCallIds.includes(toolCallId)) {
+          resolvedToolCalls++;
+        }
+      }
+    }
+
+    // If we have tool result messages for all tool calls, nothing is pending
+    return resolvedToolCalls < toolCallIds.length;
   }
 
   getLastMessage(): Message | null {

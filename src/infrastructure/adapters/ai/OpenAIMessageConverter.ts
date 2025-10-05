@@ -13,6 +13,20 @@ export class OpenAIMessageConverter {
 
     for (const message of messages) {
       const role = this.mapRole(message);
+
+      // Handle tool messages specially
+      if (role === 'tool') {
+        const toolCallId = message.getMetadata('tool_call_id') as string;
+        if (toolCallId) {
+          openaiMessages.push({
+            role: 'tool',
+            tool_call_id: toolCallId,
+            content: message.getContent().getValue(),
+          });
+        }
+        continue;
+      }
+
       const parts = this.buildMessageParts(message);
       const toolCalls = this.buildToolCalls(message);
 
@@ -28,19 +42,6 @@ export class OpenAIMessageConverter {
       }
 
       openaiMessages.push(openaiMessage);
-
-      // Add tool result messages
-      if (message.getRole().isAssistant() && message.hasToolInvocations()) {
-        for (const toolInvocation of message.getToolInvocations()) {
-          if (toolInvocation.isCompleted()) {
-            openaiMessages.push({
-              role: 'tool',
-              tool_call_id: toolInvocation.getCallId(),
-              content: JSON.stringify(toolInvocation.getResult()),
-            });
-          }
-        }
-      }
     }
 
     return openaiMessages;

@@ -25,6 +25,13 @@ export async function POST(request: NextRequest) {
     // Generate or use provided conversation ID
     const conversationId = body.conversationId || randomUUID();
 
+    // Debug: Log API call
+    console.log(`\n=== API CALL ===`);
+    console.log(`Conversation ID: ${conversationId}`);
+    console.log(`Messages count: ${body.messages?.length || 0}`);
+    console.log(`Last message: ${body.messages?.slice(-1)[0]?.content?.substring(0, 50) || 'none'}`);
+    console.log(`================\n`);
+
     // Get use cases
     const sendMessageUseCase = container.getSendMessageUseCase();
     const streamChatCompletionUseCase = container.getStreamChatCompletionUseCase();
@@ -33,34 +40,61 @@ export async function POST(request: NextRequest) {
     // Ensure conversation exists
     let conversation = await manageConversationUseCase.getConversation(conversationId);
     if (!conversation) {
-      conversation = await manageConversationUseCase.createConversation();
+      // Pass the conversationId to maintain consistency with frontend
+      conversation = await manageConversationUseCase.createConversationWithId(conversationId);
     }
 
-    // Add all messages to conversation
+    // The useChat hook sends ALL messages each time
+    // We need to only add NEW messages to avoid duplication
     if (body.messages && body.messages.length > 0) {
-      await sendMessageUseCase.executeMultiple(conversation.getId(), body.messages);
+      const existingCount = conversation.getMessageCount();
+
+      // Only process the last message if it's new (for continuing conversations)
+      if (existingCount > 0) {
+        // Get only the last user message that's new
+        const lastMessage = body.messages[body.messages.length - 1];
+        if (lastMessage && lastMessage.role === 'user') {
+          await sendMessageUseCase.execute(conversation.getId(), lastMessage);
+        }
+      } else {
+        // For new conversations, just add the first user message
+        const firstUserMessage = body.messages.find(m => m.role === 'user');
+        if (firstUserMessage) {
+          await sendMessageUseCase.execute(conversation.getId(), firstUserMessage);
+        }
+      }
     }
 
     // Create streaming response
     const stream = new ReadableStream({
       async start(controller) {
+        let streamClosed = false;
+
         try {
           // Stream the chat completion
           await streamChatCompletionUseCase.execute(conversation.getId(), controller);
+          streamClosed = true; // Stream was closed by use case
         } catch (error) {
           console.error('Streaming error:', error);
 
-          // Send error through stream
-          const errorData = {
-            type: 'error',
-            payload: {
-              error: error instanceof Error ? error.message : 'Unknown error occurred',
-            },
-          };
+          // Only try to write error if stream wasn't already closed
+          if (!streamClosed) {
+            try {
+              // Send error through stream
+              const errorData = {
+                type: 'error',
+                payload: {
+                  error: error instanceof Error ? error.message : 'Unknown error occurred',
+                },
+              };
 
-          const streamAdapter = container.getStreamAdapter();
-          streamAdapter.write(controller, errorData);
-          streamAdapter.close(controller);
+              const streamAdapter = container.getStreamAdapter();
+              streamAdapter.write(controller, errorData);
+              streamAdapter.close(controller);
+            } catch (writeError) {
+              console.error('Failed to write error to stream:', writeError);
+            }
+          }
         }
       },
     });

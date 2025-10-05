@@ -84,20 +84,13 @@ export class StreamChatCompletionUseCase {
 
           case 'usage':
             if (chunk.usage) {
-              // Execute tools before finishing
-              if (pendingToolCalls.length > 0) {
-                await this.executeToolsAndStream(
-                  pendingToolCalls,
-                  streamingResponse,
-                  controller
-                );
+              // First, complete the streaming response if no tools
+              // This allows the assistant message to be added properly
+              if (pendingToolCalls.length === 0) {
+                streamingResponse.complete(chunk.usage, chunk.finishReason || 'stop');
               }
 
-              // Complete streaming
-              streamingResponse.complete(chunk.usage, chunk.finishReason || 'stop');
-              this.streamFinish(chunk.usage, controller);
-
-              // Create assistant message
+              // Create assistant message with tool invocations
               const assistantMessage = Message.create(
                 MessageRole.assistant(),
                 MessageContent.from(accumulatedText || ''),
@@ -105,15 +98,31 @@ export class StreamChatCompletionUseCase {
                 pendingToolCalls
               );
 
-              // Add message to conversation
+              // Add assistant message to conversation
               this.orchestrator.processAssistantMessage(
                 conversation,
                 assistantMessage,
                 streamingResponse
               );
 
-              // Save conversation
+              // Save conversation with assistant message
               await this.conversationRepository.save(conversation);
+
+              // Execute tools if present
+              if (pendingToolCalls.length > 0) {
+                await this.executeToolsAndStream(
+                  pendingToolCalls,
+                  conversation,
+                  streamingResponse,
+                  controller
+                );
+
+                // Complete streaming response after tools are executed
+                streamingResponse.complete(chunk.usage, chunk.finishReason || 'stop');
+              }
+
+              // Stream finish event
+              this.streamFinish(chunk.usage, controller);
             }
             break;
 
@@ -204,10 +213,13 @@ export class StreamChatCompletionUseCase {
 
   private async executeToolsAndStream(
     toolCalls: ToolInvocation[],
+    conversation: Conversation,
     streamingResponse: StreamingResponse,
     controller: ReadableStreamDefaultController
   ): Promise<void> {
     for (const toolCall of toolCalls) {
+      let toolCompleted = false;
+
       try {
         toolCall.markAsExecuting();
 
@@ -217,6 +229,8 @@ export class StreamChatCompletionUseCase {
         );
 
         toolCall.complete(result);
+        toolCompleted = true;
+
         streamingResponse.addToolResultChunk(
           toolCall.getCallId(),
           toolCall.getToolName().getValue(),
@@ -224,9 +238,38 @@ export class StreamChatCompletionUseCase {
         );
 
         this.streamToolResult(toolCall, controller);
+
+        // Create tool result message and add to conversation
+        const toolMessage = Message.createToolMessage(
+          toolCall.getCallId(),
+          JSON.stringify(result)
+        );
+        conversation.addMessage(toolMessage);
+
+        // Save the conversation with the tool result
+        await this.conversationRepository.save(conversation);
+
       } catch (error) {
-        toolCall.fail(error as Error);
+        // Only call fail if the tool hasn't been marked as completed
+        if (!toolCompleted && toolCall.isExecuting()) {
+          toolCall.fail(error as Error);
+        }
         console.error(`Tool execution failed:`, error);
+
+        // Create error tool message
+        const errorResult = {
+          error: true,
+          message: `Tool execution failed: ${(error as Error).message}`,
+        };
+
+        const toolMessage = Message.createToolMessage(
+          toolCall.getCallId(),
+          JSON.stringify(errorResult)
+        );
+        conversation.addMessage(toolMessage);
+
+        // Save the conversation with the error result
+        await this.conversationRepository.save(conversation);
 
         // Stream error information to client
         const errorData: StreamData = {
@@ -235,10 +278,7 @@ export class StreamChatCompletionUseCase {
             toolCallId: toolCall.getCallId(),
             toolName: toolCall.getToolName().getValue(),
             args: toolCall.getArgs(),
-            result: {
-              error: true,
-              message: `Tool execution failed: ${(error as Error).message}`,
-            },
+            result: errorResult,
           },
         };
         this.streamAdapter.write(controller, errorData);

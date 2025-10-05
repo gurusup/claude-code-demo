@@ -13,8 +13,70 @@ export class InMemoryConversationRepository implements IConversationRepository {
   }
 
   async findById(id: string): Promise<Conversation | null> {
-    const conversation = this.conversations.get(id);
-    return conversation || null;
+    const stored = this.conversations.get(id);
+    if (!stored) return null;
+
+    // Create a new conversation instance from the stored data to ensure isolation
+    // This prevents mutations from affecting the stored version
+    const conversationData = stored.toObject();
+    const restoredConversation = Conversation.restore(
+      conversationData.id,
+      conversationData.messages.map((msgData: any) => {
+        const { Message } = require('../../domain/entities/Message');
+        const { MessageRole } = require('../../domain/value-objects/MessageRole');
+        const { MessageContent } = require('../../domain/value-objects/MessageContent');
+        const { ToolInvocation } = require('../../domain/entities/ToolInvocation');
+        const { ToolName } = require('../../domain/value-objects/ToolName');
+
+        const role = MessageRole.from(msgData.role);
+        const content = MessageContent.from(msgData.content);
+
+        // Reconstruct tool invocations if present
+        const toolInvocations = msgData.toolInvocations?.map((ti: any) => {
+          const invocation = ToolInvocation.create(
+            ti.callId,
+            ToolName.from(ti.toolName),
+            ti.args
+          );
+
+          // Restore the state of the tool invocation
+          if (ti.status === 'completed' && ti.result !== undefined) {
+            invocation.markAsExecuting();
+            invocation.complete(ti.result);
+          } else if (ti.status === 'failed' && ti.error) {
+            invocation.markAsExecuting();
+            invocation.fail(new Error(ti.error));
+          } else if (ti.status === 'executing') {
+            invocation.markAsExecuting();
+          }
+
+          return invocation;
+        }) || [];
+
+        const message = Message.createWithId(
+          msgData.id,
+          role,
+          content,
+          [], // attachments - not implemented yet
+          toolInvocations
+        );
+
+        // Restore metadata if present
+        if (msgData.metadata) {
+          Object.entries(msgData.metadata).forEach(([key, value]) => {
+            message.addMetadata(key, value);
+          });
+        }
+
+        return message;
+      }),
+      stored.getStatus(),
+      stored.getCreatedAt(),
+      stored.getUpdatedAt(),
+      stored.getTitle()
+    );
+
+    return restoredConversation;
   }
 
   async save(conversation: Conversation): Promise<void> {
@@ -33,8 +95,68 @@ export class InMemoryConversationRepository implements IConversationRepository {
       }
     }
 
-    this.conversations.set(conversation.getId(), conversation);
-    console.log(`Saved conversation: ${conversation.getId()}`);
+    // Create a defensive copy by serializing and deserializing
+    // This ensures that mutations to the original conversation don't affect the stored version
+    const conversationData = conversation.toObject();
+    const { Message } = require('../../domain/entities/Message');
+    const { MessageRole } = require('../../domain/value-objects/MessageRole');
+    const { MessageContent } = require('../../domain/value-objects/MessageContent');
+    const { ToolInvocation } = require('../../domain/entities/ToolInvocation');
+    const { ToolName } = require('../../domain/value-objects/ToolName');
+
+    const copiedConversation = Conversation.restore(
+      conversationData.id,
+      conversationData.messages.map((msgData: any) => {
+        const role = MessageRole.from(msgData.role);
+        const content = MessageContent.from(msgData.content);
+
+        // Reconstruct tool invocations if present
+        const toolInvocations = msgData.toolInvocations?.map((ti: any) => {
+          const invocation = ToolInvocation.create(
+            ti.callId,
+            ToolName.from(ti.toolName),
+            ti.args
+          );
+
+          // Restore the state of the tool invocation
+          if (ti.status === 'completed' && ti.result !== undefined) {
+            invocation.markAsExecuting();
+            invocation.complete(ti.result);
+          } else if (ti.status === 'failed' && ti.error) {
+            invocation.markAsExecuting();
+            invocation.fail(new Error(ti.error));
+          } else if (ti.status === 'executing') {
+            invocation.markAsExecuting();
+          }
+
+          return invocation;
+        }) || [];
+
+        const message = Message.createWithId(
+          msgData.id,
+          role,
+          content,
+          [], // attachments - not implemented yet
+          toolInvocations
+        );
+
+        // Restore metadata if present
+        if (msgData.metadata) {
+          Object.entries(msgData.metadata).forEach(([key, value]) => {
+            message.addMetadata(key, value);
+          });
+        }
+
+        return message;
+      }),
+      conversation.getStatus(),
+      conversation.getCreatedAt(),
+      conversation.getUpdatedAt(),
+      conversation.getTitle()
+    );
+
+    this.conversations.set(conversation.getId(), copiedConversation);
+    console.log(`Saved conversation: ${conversation.getId()} with ${copiedConversation.getMessageCount()} messages`);
   }
 
   async delete(id: string): Promise<void> {

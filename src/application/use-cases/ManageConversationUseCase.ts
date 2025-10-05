@@ -31,6 +31,20 @@ export class ManageConversationUseCase {
   }
 
   /**
+   * Creates a new conversation with a specific ID
+   */
+  async createConversationWithId(id: string, title?: string): Promise<Conversation> {
+    const conversation = Conversation.create(id);
+
+    if (title) {
+      conversation.setTitle(title);
+    }
+
+    await this.conversationRepository.save(conversation);
+    return conversation;
+  }
+
+  /**
    * Gets a conversation by ID
    */
   async getConversation(conversationId: string): Promise<Conversation | null> {
