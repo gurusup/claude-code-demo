@@ -92,6 +92,7 @@ export function useConversation(options: UseConversationOptions = {}) {
     handleInputChange,
   } = useChat({
     initialMessages,
+    api: '/api/conversations',
     maxSteps,
     body: {
       conversationId: storage.conversationId,

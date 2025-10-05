@@ -1,5 +1,4 @@
 // ABOUTME: Type definitions for client messages and tool invocations
-// ABOUTME: Mirrors the structure from the Python implementation
 
 export enum ToolInvocationState {
   CALL = 'call',

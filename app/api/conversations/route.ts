@@ -7,7 +7,7 @@ import { randomUUID } from 'crypto';
 import { DependencyContainer } from '@/src/infrastructure/config/DependencyContainer';
 import { ChatRequestDto } from '@/src/application/dto/ChatRequestDto';
 /**
- * POST /api/chat
+ * POST /api/conversations
  * Handles streaming chat completions with tool execution
  */
 export async function POST(request: NextRequest) {
@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * GET /api/chat
+ * GET /api/conversations
  * Health check endpoint
  */
 export async function GET(request: NextRequest) {

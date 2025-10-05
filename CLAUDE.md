@@ -4,122 +4,190 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a pure Next.js application demonstrating AI chat streaming using the OpenAI SDK and Vercel's Data Stream Protocol. The application provides AI chat completions with tool calling capabilities, all running within Next.js API routes.
+This is a Next.js application implementing AI chat streaming with hexagonal architecture. The application demonstrates Domain-Driven Design principles with clean separation between domain logic, application services, and infrastructure adapters.
 
 ## Architecture
 
 ### Tech Stack
 - **Framework**: Next.js 13 with App Router (`app/` directory)
-- **API Routes**: Next.js API routes for backend functionality
+- **Architecture**: Hexagonal (Ports & Adapters) with Domain-Driven Design
 - **AI Integration**: OpenAI SDK for chat completions
 - **Streaming**: Vercel's Data Stream Protocol v1
+- **State Management**: React Query (TanStack Query) + Vercel AI SDK
+- **Testing**: Vitest with React Testing Library
+- **UI Components**: shadcn/ui (new-york style)
 
-### API Communication Flow
-1. Frontend sends ClientMessages to `/api/chat`
-2. API route converts messages to OpenAI format
-3. OpenAI SDK streams chat completion with tool calls
-4. Stream is formatted using Data Stream Protocol v1
-5. Frontend receives and displays streaming responses
+### Hexagonal Architecture Layers
 
-### Directory Structure
+The codebase follows strict hexagonal architecture with three primary layers:
 
+#### Backend
+```
+src/
+  domain/              # Core business logic (framework-agnostic)
+    entities/          # Aggregates (e.g., Conversation, Message)
+    value-objects/     # Immutable domain concepts (MessageRole, ToolName)
+    services/          # Domain services (ConversationOrchestrator)
+    repositories/      # Repository interfaces
+    exceptions/        # Domain-specific errors
+
+  application/         # Use cases and application services
+    use-cases/         # Business workflows (SendMessageUseCase, StreamChatCompletionUseCase)
+    ports/
+      inbound/         # Service interfaces exposed to presentation
+      outbound/        # Interfaces for infrastructure dependencies
+    dto/               # Data transfer objects
+    mappers/           # DTO <-> Entity conversion
+
+  infrastructure/      # Adapters and external integrations
+    adapters/
+      ai/              # OpenAI adapter
+      streaming/       # Vercel stream adapter
+      tools/           # Tool implementations
+    repositories/      # Repository implementations
+    config/            # DependencyContainer (IoC)
+app/
+  api/conversations/   # Next.js API route (thin controller)
+```
+
+#### Frontend
 ```
 app/
-  api/
-    chat/          # API route for chat completions
-      route.ts     # Streaming chat endpoint
-  utils/           # TypeScript utilities
-    tools.ts       # Tool implementations (weather)
-    types.ts       # Type definitions
-    prompt.ts      # Message conversion utilities
-  (chat)/          # Route group for chat interface
-    page.tsx       # Main chat page
-  layout.tsx       # Root layout
-  globals.css      # Global styles with CSS variables
+  features/            # Feature-based organization for UI
+    conversation/
+      components/      # React components
+      hooks/           # Business hooks (useConversation)
+      data/            # Frontend data layer
+```
 
-components/
-  chat.tsx         # Main chat component using useChat
-  message.tsx      # Individual message rendering
-  multimodal-input.tsx  # Chat input with file upload
-  ui/              # shadcn/ui components
+### Key Architectural Principles
 
-lib/              # Utility functions
-hooks/            # Custom React hooks
+1. **Dependency Rule**: All dependencies point inward. Domain has zero dependencies on infrastructure.
+2. **Ports & Adapters**: Infrastructure implements interfaces defined in application/ports
+3. **Dependency Injection**: DependencyContainer manages all service instantiation
+4. **Domain Entities**: Business rules enforced in entities (e.g., Conversation validates message ordering)
+
+### Path Aliases (tsconfig.json)
+
+```typescript
+"@/*"              → Project root
+"@/domain/*"       → ./src/domain/*
+"@/application/*"  → ./src/application/*
+"@/infrastructure/*" → ./src/infrastructure/*
+"@/presentation/*" → ./src/presentation/*
+"@/components"     → ./components (shadcn/ui)
+"@/lib"            → ./lib
+"@/hooks"          → ./hooks
 ```
 
 ## Development Commands
 
 ### Running the Application
 
-**Development**:
 ```bash
-yarn dev
+yarn dev          # Development server on port 3000
+yarn build        # Production build
+yarn start        # Production server
 ```
 
-This starts the Next.js dev server on port 3000 with hot reload.
-
-### Building and Testing
+### Testing
 
 ```bash
-# Build for production
-yarn build
-
-# Start production server
-yarn start
-
-# Lint
-yarn lint
-
-# Run tests
-yarn test
-
-# Run tests with UI
-yarn test:ui
-
-# Run tests with coverage
-yarn test:coverage
+yarn test              # Run Vitest tests
+yarn test:ui           # Run tests with UI
+yarn test:coverage     # Run tests with coverage
 ```
+
+### Linting
+
+```bash
+yarn lint         # ESLint
+```
+
+### Adding UI Components
+
+```bash
+npx shadcn-ui@latest add [component-name]
+```
+
+**Always use yarn instead of npm.**
 
 ## Environment Variables
 
 Required in `.env`:
 - `OPENAI_API_KEY` - OpenAI API key for GPT-4o model
 
+## API Communication Flow
+
+1. Frontend sends messages via `useConversation` hook → `/api/conversations`
+2. API route delegates to use cases via DependencyContainer
+3. `ManageConversationUseCase` creates/retrieves conversation entity
+4. `SendMessageUseCase` adds user message to conversation
+5. `StreamChatCompletionUseCase` orchestrates AI streaming:
+   - Gets messages from conversation entity
+   - Converts to OpenAI format via `OpenAIMessageConverter`
+   - Streams response via `VercelStreamAdapter`
+   - Executes tools via `ExecuteToolUseCase`
+6. Frontend receives streaming response via Vercel AI SDK
+
 ## Key Technical Details
 
-### Path Aliases (tsconfig.json:22-24)
-- `@/*` maps to project root
-- Used throughout for clean imports: `@/components/chat`
+### Domain Entities
 
-### shadcn/ui Configuration (components.json)
+- **Conversation**: Aggregate root enforcing message ordering, status transitions, and conversation lifecycle
+- **Message**: Entity with role validation, content, attachments, and tool invocations
+- **Value Objects**: MessageRole, MessageContent, ToolName, Attachment, Coordinates
+
+### Use Cases (Application Layer)
+
+- `ManageConversationUseCase`: Create/retrieve conversations
+- `SendMessageUseCase`: Add messages to conversations
+- `StreamChatCompletionUseCase`: Stream AI responses
+- `ExecuteToolUseCase`: Execute tool calls (e.g., weather)
+
+### Frontend Architecture
+
+The `useConversation` hook is the primary interface for chat functionality:
+- Wraps Vercel AI SDK's `useChat` with business logic
+- Manages conversation storage and metadata
+- Provides derived state (isEmpty, isThinking, hasMessages)
+- Handles error states with user-friendly messages
+
+Located at: `app/features/conversation/hooks/useConversation.tsx:37`
+
+### shadcn/ui Configuration
+
 - Style: "new-york"
 - Base color: zinc
 - CSS variables enabled for theming
 - Components auto-imported to `@/components/ui`
 
-### Streaming Protocol
-The API route implements Vercel's Data Stream Protocol v1 (indicated by `x-vercel-ai-data-stream: v1` header). This allows:
-- Incremental text streaming
-- Tool call streaming with automatic execution
-- Usage tracking (prompt/completion tokens)
-
 ## Adding New Features
 
 ### Adding a New Tool
-1. Define function in `app/utils/tools.ts`
-2. Add to `availableTools` object in `app/api/chat/route.ts`
-3. Add tool definition to the `tools` array in the API route
+
+1. Create tool interface in `src/application/ports/outbound/` (e.g., `IWeatherService.ts`)
+2. Implement tool in `src/infrastructure/adapters/tools/` (e.g., `WeatherTool.ts`)
+3. Register in `ToolRegistry` (`src/infrastructure/adapters/tools/ToolRegistry.ts`)
+4. Add to DependencyContainer if needed
+
+### Adding a New Use Case
+
+1. Define in `src/application/use-cases/`
+2. Follow constructor injection pattern for dependencies
+3. Add factory method to DependencyContainer
+4. Call from API route controller
 
 ### Adding Frontend Components
+
 Use shadcn/ui CLI:
 ```bash
 npx shadcn-ui@latest add [component-name]
 ```
-Always use yarn instead of npm
 
-### Modifying Message Types
-Update interfaces in `app/utils/types.ts` and ensure `convertToOpenAIMessages()` in `app/utils/prompt.ts` handles the new format.
+Components are automatically configured for the project's path aliases.
 
+## Sub-Agent Workflow
 
 ## Rules
 - After a plan mode phase you should create a `.claude/sessions/context_session_{feature_name}.md` with the definition of the plan
@@ -128,21 +196,67 @@ Update interfaces in `app/utils/types.ts` and ensure `convertToOpenAIMessages()`
 - After you finish the work, MUST update the `.claude/sessions/context_session_{feature_name}.md` file to make sure others can get full context of what you did
 - After you finish the each phase, MUST update the `.claude/sessions/context_session_{feature_name}.md` file to make sure others can get full context of what you did
 
-## Sub agents
-You have access to 9 sub agents:
-- shadcn-ui-architect: all task related to UI building & tweaking HAVE TO consult this agent
-- qa-criteria-validator: all final client UI/UX implementations has to be validated by this subagent to provide feedback an iterate.
-- ui-ux-analyzer: all the task related with UI review, improvements & tweaking HAVE TO consult this agent
-- frontend-developer: all task related to business logic in the client side before create the UI building & tweaking HAVE TO consult this agent
-- frontend-test-engineer: all task related to business logic in the client side after implementation has to consult this agent to get the necesary test cases definitions
-- typescript-test-explorer: when test are needed HAVE TO consult this agent to define test cases
-- hexagonal-backend-architect: all task related with NextJs api HAVE TO be implemented by this agent
-- backend-test-architect: all task related to write test HAVE TO consult this agent
+## Sub-Agent Workflow
+This project uses specialized sub-agents for different concerns. Always consult the appropriate agent:
 
+- **shadcn-ui-architect**: UI building & component architecture
+- **qa-criteria-validator**: Final UI/UX validation and feedback
+- **ui-ux-analyzer**: UI review, improvements & tweaking
+- **frontend-developer**: Client-side business logic
+- **frontend-test-engineer**: Frontend test case definitions
+- **typescript-test-explorer**: Test case design
+- **hexagonal-backend-architect**: NextJS API & backend architecture
+- **backend-test-architect**: Backend test definitions
 
 Sub agents will do research about the implementation and report feedback, but you will do the actual implementation;
 When passing task to sub agent, make sure you pass the context file, e.g. `.claude/sessions/context_session_{feature_name}.md`.
 After each sub agent finish the work, make sure you read the related documentation they created to get full context of the plan before you start executing
+
+## Code Writing Standards
+
+- **Simplicity First**: Prefer simple, clean, maintainable solutions over clever ones
+- **ABOUTME Comments**: All files must start with 2-line comment with "ABOUTME: " prefix
+- **Minimal Changes**: Make smallest reasonable changes to achieve desired outcome
+- **Style Matching**: Match existing code style/formatting within each file
+- **Preserve Comments**: Never remove comments unless provably false
+- **No Temporal Naming**: Avoid 'new', 'improved', 'enhanced', 'recently' in names/comments
+- **Evergreen Documentation**: Comments describe code as it is, not its history
+
+## Version Control
+
+- Non-trivial edits must be tracked in git
+- Create WIP branches for new work
+- Commit frequently throughout development
+- Never throw away implementations without explicit permission
+
+## Testing Requirements
+
+**NO EXCEPTIONS POLICY**: All projects MUST have:
+- Unit tests
+
+The only way to skip tests: Fran EXPLICITLY states "I AUTHORIZE YOU TO SKIP WRITING TESTS THIS TIME."
+
+- Tests must comprehensively cover all functionality
+- Test output must be pristine to pass
+- Never ignore system/test output - logs contain critical information
+
+## Architecture Compliance
+
+When writing backend code:
+
+1. **Keep Domain Pure**: Zero framework dependencies in `src/domain/`
+2. **Define Ports First**: Interfaces in `src/application/ports/` before implementations
+3. **Thin Controllers**: API routes delegate immediately to use cases
+4. **Dependency Injection**: All dependencies injected via constructor
+5. **Repository Pattern**: Data access only through repository interfaces
+
+When writing frontend code:
+
+1. **Container Pattern**: Separate business logic from presentation
+2. **Custom Hooks**: Business logic in hooks (e.g., `useConversation`)
+3. **Feature Organization**: Group by feature in `app/features/`
+4. **Component Purity**: Components receive props, hooks manage state
+
 
 ## Code Writing
 
@@ -166,10 +280,12 @@ After each sub agent finish the work, make sure you read the related documentati
 - When starting work without a clear branch for the current task, YOU MUST create a WIP branch.
 - YOU MUST commit frequently throughout the development process.
 
+
 ## Getting Help
 
-- YOU MUST ALWAYS ask for clarification rather than making assumptions.
-- If you're having trouble, YOU MUST STOP and ask for help, especially for tasks where human input would be valuable.
+- Always ask for clarification rather than making assumptions
+- Stop and ask for help when stuck, especially when human input would be valuable
+- If considering an exception to any rule, stop and get explicit permission from Fran first
 
 ## Testing
 
@@ -179,6 +295,6 @@ After each sub agent finish the work, make sure you read the related documentati
 - If logs are expected to contain errors, these MUST be captured and tested.
 - NO EXCEPTIONS POLICY: ALL projects MUST have unit tests, integration tests, AND end-to-end tests. The only way to skip any test type is if Fran EXPLICITLY states: "I AUTHORIZE YOU TO SKIP WRITING TESTS THIS TIME."
 
-## Compliance Check
 
+## Compliance Check
 Before submitting any work, verify that you have followed ALL guidelines above. If you find yourself considering an exception to ANY rule, YOU MUST STOP and get explicit permission from Fran first.
