@@ -133,9 +133,11 @@ You have access to 9 sub agents:
 - shadcn-ui-architect: all task related to UI building & tweaking HAVE TO consult this agent
 - qa-criteria-validator: all final client UI/UX implementations has to be validated by this subagent to provide feedback an iterate.
 - ui-ux-analyzer: all the task related with UI review, improvements & tweaking HAVE TO consult this agent
-- claude-sdk-expert: all implementations related with agents has to consult this subagent.
 - frontend-developer: all task related to business logic in the client side before create the UI building & tweaking HAVE TO consult this agent
 - frontend-test-engineer: all task related to business logic in the client side after implementation has to consult this agent to get the necesary test cases definitions
+- typescript-test-explorer: when test are needed HAVE TO consult this agent to define test cases
+- hexagonal-backend-architect: all task related with NextJs api HAVE TO be implemented by this agent
+- backend-test-architect: all task related to write test HAVE TO consult this agent
 
 
 Sub agents will do research about the implementation and report feedback, but you will do the actual implementation;
