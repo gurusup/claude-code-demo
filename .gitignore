@@ -12,11 +12,6 @@
 /.next/
 /out/
 
-# python
-venv/
-.env
-__pycache__
-
 # production
 /build
 
@@ -30,6 +25,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
+.env
 .env*.local
 
 # vercel

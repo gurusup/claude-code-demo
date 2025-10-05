@@ -1,41 +1,89 @@
-# AI SDK Python Streaming Preview
+# Next.js AI Chat with Streaming
 
-This template demonstrates the usage of [Data Stream Protocol](https://sdk.vercel.ai/docs/ai-sdk-ui/stream-protocol#data-stream-protocol) to stream chat completions from a Python endpoint ([FastAPI](https://fastapi.tiangolo.com)) and display them using the [useChat](https://sdk.vercel.ai/docs/ai-sdk-ui/chatbot#chatbot) hook in your Next.js application.
+This is a Next.js application that demonstrates AI chat functionality with streaming responses using OpenAI's GPT-4o model and the Vercel AI SDK.
 
-## Deploy your own
+## Features
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Fai-sdk-preview-python-streaming&env=OPENAI_API_KEY&envDescription=API%20keys%20needed%20for%20application&envLink=https%3A%2F%2Fgithub.com%2Fvercel-labs%2Fai-sdk-preview-python-streaming%2Fblob%2Fmain%2F.env.example)
+- 🚀 Pure Next.js implementation (no Python backend required)
+- 💬 Real-time streaming chat responses
+- 🛠️ Tool calling support (weather data example)
+- 🎨 Modern UI with shadcn/ui components
+- 🌓 Dark/Light theme support
 
-## How to use
+## Tech Stack
 
-Run [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
+- **Framework**: Next.js 13 with App Router
+- **AI Integration**: OpenAI SDK + Vercel AI SDK
+- **Styling**: Tailwind CSS + shadcn/ui
+- **Language**: TypeScript
 
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+ installed
+- OpenAI API key
+
+### Installation
+
+1. Clone the repository:
 ```bash
-npx create-next-app --example https://github.com/vercel-labs/ai-sdk-preview-python-streaming ai-sdk-preview-python-streaming-example
+git clone <your-repo-url>
+cd next-up-to-date-ai
 ```
 
+2. Install dependencies:
 ```bash
-yarn create next-app --example https://github.com/vercel-labs/ai-sdk-preview-python-streaming ai-sdk-preview-python-streaming-example
+yarn install
+# or
+npm install
 ```
 
+3. Set up environment variables:
 ```bash
-pnpm create next-app --example https://github.com/vercel-labs/ai-sdk-preview-python-streaming ai-sdk-preview-python-streaming-example
+cp .env.example .env
 ```
 
-To run the example locally you need to:
+Then edit `.env` and add your OpenAI API key:
+```
+OPENAI_API_KEY=your-openai-api-key-here
+```
 
-1. Sign up for accounts with the AI providers you want to use (e.g., OpenAI, Anthropic).
-2. Obtain API keys for each provider.
-3. Set the required environment variables as shown in the `.env.example` file, but in a new file called `.env`.
-4. `pnpm install` to install the required Node dependencies.
-5. `virtualenv venv` to create a virtual environment.
-6. `source venv/bin/activate` to activate the virtual environment.
-7. `pip install -r requirements.txt` to install the required Python dependencies.
-8. `pnpm dev` to launch the development server.
+4. Run the development server:
+```bash
+yarn dev
+# or
+npm run dev
+```
+
+5. Open [http://localhost:3000](http://localhost:3000) in your browser
+
+## Project Structure
+
+```
+app/
+  api/
+    chat/          # API route for chat completions
+  utils/           # TypeScript utilities and types
+  (chat)/          # Chat interface pages
+components/        # React components
+  ui/              # shadcn/ui components
+```
+
+## Available Scripts
+
+- `yarn dev` - Start development server
+- `yarn build` - Build for production
+- `yarn start` - Start production server
+- `yarn lint` - Run ESLint
+- `yarn test` - Run tests with Vitest
+
+## Environment Variables
+
+- `OPENAI_API_KEY` - Your OpenAI API key (required)
 
 ## Learn More
 
-To learn more about the AI SDK or Next.js by Vercel, take a look at the following resources:
-
-- [AI SDK Documentation](https://sdk.vercel.ai/docs)
 - [Next.js Documentation](https://nextjs.org/docs)
+- [Vercel AI SDK Documentation](https://sdk.vercel.ai/docs)
+- [OpenAI API Documentation](https://platform.openai.com/docs)
