@@ -24,7 +24,11 @@ export class WeatherTool implements ITool {
     return this.description;
   }
 
-  getParameters(): Record<string, any> {
+  getParameters(): {
+    type: 'object';
+    properties: Record<string, any>;
+    required?: string[];
+  } {
     return {
       type: 'object',
       properties: {

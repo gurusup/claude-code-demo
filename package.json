@@ -14,6 +14,7 @@
   "dependencies": {
     "@ai-sdk/ui-utils": "^0.0.20",
     "@radix-ui/react-slot": "^1.1.0",
+    "@tanstack/react-query": "^5.90.2",
     "@types/node": "20.2.4",
     "@types/react": "18.2.7",
     "@types/react-dom": "18.2.4",
@@ -21,6 +22,7 @@
     "@vercel/kv": "^2.0.0",
     "ai": "^4.0.2",
     "autoprefixer": "10.4.14",
+    "axios": "^1.12.2",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

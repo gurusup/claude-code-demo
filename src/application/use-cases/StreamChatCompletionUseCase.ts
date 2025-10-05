@@ -43,10 +43,13 @@ export class StreamChatCompletionUseCase {
       // Prepare for streaming
       const context = this.orchestrator.prepareForStreaming(conversation);
       streamingResponse = context.streamingResponse;
+      if (!streamingResponse) {
+        throw new Error('Failed to prepare streaming response');
+      }
       streamingResponse.start();
 
       // Prepare AI request
-      const messages = conversation.getMessages();
+      const messages = [...conversation.getMessages()]; // Create mutable copy
       const tools = this.toolRegistry.getAllDefinitions();
 
       const request: AICompletionRequest = {

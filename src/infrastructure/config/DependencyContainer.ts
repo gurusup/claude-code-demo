@@ -188,11 +188,11 @@ export class DependencyContainer {
    */
   async healthCheck(): Promise<{
     status: 'healthy' | 'unhealthy';
-    services: Record<string, boolean>;
+    services: Record<string, boolean | number>;
     errors: string[];
   }> {
     const errors: string[] = [];
-    const services: Record<string, boolean> = {};
+    const services: Record<string, boolean | number> = {};
 
     // Check AI provider
     try {

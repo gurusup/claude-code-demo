@@ -18,7 +18,11 @@ export interface ITool {
   /**
    * Gets the tool parameters schema
    */
-  getParameters(): Record<string, any>;
+  getParameters(): {
+    type: 'object';
+    properties: Record<string, any>;
+    required?: string[];
+  };
 
   /**
    * Executes the tool with given arguments

@@ -46,8 +46,11 @@ export class ConversationMapper {
   /**
    * Converts array of domain Conversations to summary DTOs
    */
-  static toSummaryDtoArray(conversations: Conversation[]): Array<Omit<ConversationDto, 'messages'> & { messages?: [] }> {
-    return conversations.map(c => this.toSummaryDto(c));
+  static toSummaryDtoArray(conversations: Conversation[]): ConversationDto[] {
+    return conversations.map(c => ({
+      ...this.toSummaryDto(c),
+      messages: [] // Provide empty array to satisfy ConversationDto interface
+    }));
   }
 
   private static mapStatus(status: ConversationStatus): 'active' | 'waiting_for_response' | 'completed' | 'archived' {

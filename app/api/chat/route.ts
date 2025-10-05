@@ -54,13 +54,13 @@ export async function POST(request: NextRequest) {
         // Get only the last user message that's new
         const lastMessage = body.messages[body.messages.length - 1];
         if (lastMessage && lastMessage.role === 'user') {
-          await sendMessageUseCase.execute(conversation.getId(), lastMessage);
+          await sendMessageUseCase.execute(conversation?.getId() || '', lastMessage);
         }
       } else {
         // For new conversations, just add the first user message
         const firstUserMessage = body.messages.find(m => m.role === 'user');
         if (firstUserMessage) {
-          await sendMessageUseCase.execute(conversation.getId(), firstUserMessage);
+          await sendMessageUseCase.execute(conversation?.getId() || '', firstUserMessage);
         }
       }
     }
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
 
         try {
           // Stream the chat completion
-          await streamChatCompletionUseCase.execute(conversation.getId(), controller);
+          await streamChatCompletionUseCase.execute(conversation?.getId() || '', controller);
           streamClosed = true; // Stream was closed by use case
         } catch (error) {
           console.error('Streaming error:', error);
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
           if (!streamClosed) {
             try {
               // Send error through stream
-              const errorData = {
+              const errorData:any = {
                 type: 'error',
                 payload: {
                   error: error instanceof Error ? error.message : 'Unknown error occurred',
