@@ -4,93 +4,38 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Next.js + FastAPI hybrid application demonstrating AI SDK Python streaming using the Data Stream Protocol. The frontend (Next.js) communicates with a Python backend (FastAPI) for AI chat completions with tool calling capabilities.
+This is a pure Next.js application demonstrating AI chat streaming using the OpenAI SDK and Vercel's Data Stream Protocol. The application provides AI chat completions with tool calling capabilities, all running within Next.js API routes.
 
 ## Architecture
 
-### Hybrid Stack
-- **Frontend**: Next.js 13 with App Router (`app/` directory)
-- **Backend**: FastAPI running on port 8000 (development)
-- **API Proxy**: Next.js rewrites route `/api/*` to FastAPI in development (next.config.js:3-27)
+### Tech Stack
+- **Framework**: Next.js 13 with App Router (`app/` directory)
+- **API Routes**: Next.js API routes for backend functionality
+- **AI Integration**: OpenAI SDK for chat completions
+- **Streaming**: Vercel's Data Stream Protocol v1
 
-### Backend: Hexagonal Architecture (Ports & Adapters)
-
-The FastAPI backend follows clean hexagonal architecture with clear separation of concerns:
-
-**Layers**:
-1. **Domain Layer** (`api/domain/`): Core business logic, entities, and port interfaces
-   - Entities: Message, ToolCall, StreamEvent (immutable dataclasses)
-   - Ports: ILLMProvider, IToolExecutor, IWeatherService (abstract interfaces)
-   - Exceptions: Domain-specific error hierarchy
-
-2. **Application Layer** (`api/application/`): Use cases orchestrating business logic
-   - `StreamChatCompletionUseCase`: Coordinates LLM streaming and tool execution
-   - Converts LLMEvents to domain StreamEvents
-
-3. **Infrastructure Layer** (`api/infrastructure/`): External service adapters
-   - `OpenAILLMAdapter`: Implements ILLMProvider for OpenAI API
-   - `ToolExecutor`: Manages tool registry and execution with Pydantic validation
-   - `WeatherTool`: Example tool implementation
-   - `VercelStreamProtocolAdapter`: Converts StreamEvents to Data Stream Protocol v1
-
-4. **Web Layer** (`api/web/`): HTTP concerns (FastAPI routers, DTOs, mappers)
-   - `chat.py`: FastAPI router for `/api/chat` endpoint
-   - `MessageMapper`: Converts ClientMessage DTOs to domain Messages
-   - Maintains backward compatibility with frontend
-
-5. **Configuration** (`api/config/`, `api/main.py`): Dependency wiring
-   - Settings management with environment variables
-   - Manual dependency injection in main.py
-
-**Key Architectural Benefits**:
-- **Testability**: Each layer tested independently with mocked dependencies (213+ unit tests)
-- **Flexibility**: Swap LLM providers without changing business logic
-- **Maintainability**: Clear boundaries prevent mixing of concerns
-- **Event-Based Streaming**: Domain events (TextDelta, ToolCallCompleted) separate from protocol formats
-
-**API Communication Flow**:
+### API Communication Flow
 1. Frontend sends ClientMessages to `/api/chat`
-2. Router converts DTOs to domain Messages via MessageMapper
-3. Use case orchestrates LLM streaming and tool execution
-4. Domain StreamEvents converted to protocol strings
-5. FastAPI streams response with Data Stream Protocol v1 headers
+2. API route converts messages to OpenAI format
+3. OpenAI SDK streams chat completion with tool calls
+4. Stream is formatted using Data Stream Protocol v1
+5. Frontend receives and displays streaming responses
 
 ### Directory Structure
 
 ```
 app/
+  api/
+    chat/          # API route for chat completions
+      route.ts     # Streaming chat endpoint
+  utils/           # TypeScript utilities
+    tools.ts       # Tool implementations (weather)
+    types.ts       # Type definitions
+    prompt.ts      # Message conversion utilities
   (chat)/          # Route group for chat interface
     page.tsx       # Main chat page
   layout.tsx       # Root layout
   globals.css      # Global styles with CSS variables
-
-api/
-  main.py          # FastAPI app entry point (hexagonal architecture)
-  domain/          # Domain layer (business logic)
-    entities/      # Message, Tool, Events
-    ports/         # ILLMProvider, IToolExecutor, IWeatherService
-    exceptions.py  # Domain exceptions
-  application/     # Application layer (use cases)
-    use_cases/     # StreamChatCompletionUseCase
-  infrastructure/  # Infrastructure layer (adapters)
-    llm/           # OpenAILLMAdapter
-    tools/         # ToolExecutor, WeatherTool
-    services/      # OpenMeteoWeatherAdapter
-    protocol/      # VercelStreamProtocolAdapter
-  web/             # Web layer (HTTP concerns)
-    routers/       # FastAPI routers
-    dtos/          # ClientMessage DTOs
-    mappers/       # MessageMapper
-  config/          # Configuration
-    settings.py    # Environment settings
-
-tests/
-  unit/            # Unit tests for all layers
-    domain/        # Domain entity tests
-    application/   # Use case tests
-    infrastructure/# Adapter tests
-    web/           # Router/mapper tests
-  conftest.py      # Shared test fixtures
 
 components/
   chat.tsx         # Main chat component using useChat
@@ -106,88 +51,39 @@ hooks/            # Custom React hooks
 
 ### Running the Application
 
-**Development (both frontend + backend concurrently)**:
+**Development**:
 ```bash
 yarn dev
 ```
 
-This runs both:
-- Next.js dev server on port 3000
-- FastAPI with uvicorn on port 8000 (auto-reload enabled)
-
-**Run services individually**:
-```bash
-# Frontend only
-yarn run next-dev
-
-# Backend only (installs requirements first)
-yarn run fastapi-dev
-```
-
-### Python Environment Setup
-
-```bash
-# Create virtual environment (first time)
-virtualenv venv
-# or
-python -m venv .venv
-
-# Activate (do this each session)
-source venv/bin/activate  # macOS/Linux
-# or
-source .venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-```
+This starts the Next.js dev server on port 3000 with hot reload.
 
 ### Building and Testing
 
 ```bash
 # Build for production
-yarn run build
+yarn build
 
 # Start production server
 yarn start
 
 # Lint
-yarn run lint
+yarn lint
+
+# Run tests
+yarn test
+
+# Run tests with UI
+yarn test:ui
+
+# Run tests with coverage
+yarn test:coverage
 ```
-
-### Running Backend Tests
-
-```bash
-# Run all unit tests
-pytest tests/unit/ -v
-
-# Run with coverage report
-pytest tests/unit/ --cov=api --cov-report=html --cov-report=term-missing
-
-# Run specific layer tests
-pytest tests/unit/domain/ -v
-pytest tests/unit/application/ -v
-pytest tests/unit/infrastructure/ -v
-pytest tests/unit/web/ -v
-
-# Run tests by marker
-pytest -m domain
-pytest -m application
-
-# Generate HTML coverage report
-pytest tests/unit/ --cov=api --cov-report=html
-# View coverage in htmlcov/index.html
-```
-
-**Test Suite Stats**:
-- 213+ unit tests across all layers
-- 99.5% pass rate
-- Event-based architecture enables isolated testing with mocked dependencies
 
 ## Environment Variables
 
 Required in `.env`:
 - `OPENAI_API_KEY` - OpenAI API key for GPT-4o model
-- (Add other provider keys as needed: Anthropic, etc.)
 
 ## Key Technical Details
 
@@ -201,11 +97,8 @@ Required in `.env`:
 - CSS variables enabled for theming
 - Components auto-imported to `@/components/ui`
 
-### API Rewrites in Production
-In production (Vercel), `/api/*` routes serve from `/api/` directory instead of proxying to port 8000. The FastAPI app must be deployed as a serverless function.
-
 ### Streaming Protocol
-The backend implements Vercel's Data Stream Protocol v1 (indicated by `x-vercel-ai-data-stream: v1` header). This allows:
+The API route implements Vercel's Data Stream Protocol v1 (indicated by `x-vercel-ai-data-stream: v1` header). This allows:
 - Incremental text streaming
 - Tool call streaming with automatic execution
 - Usage tracking (prompt/completion tokens)
@@ -213,9 +106,9 @@ The backend implements Vercel's Data Stream Protocol v1 (indicated by `x-vercel-
 ## Adding New Features
 
 ### Adding a New Tool
-1. Define function in `api/utils/tools.py`
-2. Add to `available_tools` dict in `api/index.py`
-3. Add tool schema to OpenAI chat completion calls (lines 36-56, 69-89)
+1. Define function in `app/utils/tools.ts`
+2. Add to `availableTools` object in `app/api/chat/route.ts`
+3. Add tool definition to the `tools` array in the API route
 
 ### Adding Frontend Components
 Use shadcn/ui CLI:
@@ -225,7 +118,7 @@ npx shadcn-ui@latest add [component-name]
 Always use yarn instead of npm
 
 ### Modifying Message Types
-Update `ClientMessage` in `api/utils/prompt.py` and ensure `convert_to_openai_messages()` handles the new format.
+Update interfaces in `app/utils/types.ts` and ensure `convertToOpenAIMessages()` in `app/utils/prompt.ts` handles the new format.
 
 
 ## Rules
@@ -237,15 +130,12 @@ Update `ClientMessage` in `api/utils/prompt.py` and ensure `convert_to_openai_me
 
 ## Sub agents
 You have access to 9 sub agents:
-- python-test-explorer: all the times that test are going to be created have to consult this subagent
 - shadcn-ui-architect: all task related to UI building & tweaking HAVE TO consult this agent
 - qa-criteria-validator: all final client UI/UX implementations has to be validated by this subagent to provide feedback an iterate.
 - ui-ux-analyzer: all the task related with UI review, improvements & tweaking HAVE TO consult this agent
 - claude-sdk-expert: all implementations related with agents has to consult this subagent.
 - frontend-developer: all task related to business logic in the client side before create the UI building & tweaking HAVE TO consult this agent
 - frontend-test-engineer: all task related to business logic in the client side after implementation has to consult this agent to get the necesary test cases definitions
-- backend-developer: all task related to business logic in the backend side HAVE TO consult this agent
-- backend-test-engineer: all task related to business logic in the backned side after implementation has to consult this agent to get the necesary test cases definitions
 
 
 Sub agents will do research about the implementation and report feedback, but you will do the actual implementation;
