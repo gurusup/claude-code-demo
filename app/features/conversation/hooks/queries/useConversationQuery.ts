@@ -21,31 +21,62 @@ export const conversationKeys = {
 };
 
 /**
- * Hook to fetch conversation history/messages
+ * Hook to fetch full conversation with messages
  */
-export function useConversationHistoryQuery(conversationId: string, enabled = true) {
+export function useConversationMessagesQuery(
+  conversationId: string,
+  options?: { enabled?: boolean }
+) {
   return useQuery({
     queryKey: conversationKeys.messages(conversationId),
     queryFn: async () => {
-      const messages = await ConversationService.getConversationHistory(conversationId);
-      // Validate with schema
-      return MessagesSchema.parse(messages);
+      const conversation = await ConversationService.getConversationById(conversationId);
+      // Validate messages with schema
+      const messages = MessagesSchema.parse(conversation.messages);
+      return {
+        ...conversation,
+        messages,
+      };
     },
-    enabled: enabled && !!conversationId,
+    enabled: (options?.enabled ?? true) && !!conversationId,
     staleTime: 1000 * 60 * 5, // 5 minutes
-    gcTime: 1000 * 60 * 30, // 30 minutes (formerly cacheTime)
+    gcTime: 1000 * 60 * 30, // 30 minutes
     retry: 2,
+    refetchOnMount: false, // Don't refetch on mount for messages
   });
 }
 
 /**
- * Hook to fetch list of conversations
+ * Hook to fetch conversation history/messages (legacy)
+ * @deprecated Use useConversationMessagesQuery instead
  */
-export function useConversationsListQuery(enabled = true) {
+export function useConversationHistoryQuery(conversationId: string, enabled = true) {
+  const query = useConversationMessagesQuery(conversationId, { enabled });
+  return {
+    ...query,
+    data: query.data?.messages,
+  };
+}
+
+/**
+ * Hook to fetch list of conversations with optional filtering
+ */
+export function useConversationsListQuery(options?: {
+  status?: string;
+  limit?: number;
+  offset?: number;
+  enabled?: boolean;
+}) {
+  const { status, limit = 100, offset = 0, enabled = true } = options || {};
+
   return useQuery({
-    queryKey: conversationKeys.lists(),
+    queryKey: conversationKeys.list({ status, limit, offset }),
     queryFn: async () => {
-      const conversations = await ConversationService.listConversations();
+      const conversations = await ConversationService.listConversations({
+        status,
+        limit,
+        offset,
+      });
       // Validate with schema
       return ConversationListSchema.parse(conversations);
     },
@@ -53,26 +84,34 @@ export function useConversationsListQuery(enabled = true) {
     staleTime: 1000 * 60 * 2, // 2 minutes
     gcTime: 1000 * 60 * 10, // 10 minutes
     retry: 2,
+    refetchOnMount: true, // Always refetch list on mount
   });
 }
 
 /**
  * Hook to prefetch conversation data
- * Useful for preloading data before navigation
+ * Useful for hover-triggered preloading (debounced 300ms)
  */
-export function usePrefetchConversation(conversationId: string) {
+export function usePrefetchConversation() {
   const queryClient = useQueryClient();
 
-  const prefetchConversation = useCallback(async () => {
-    await queryClient.prefetchQuery({
-      queryKey: conversationKeys.messages(conversationId),
-      queryFn: async () => {
-        const messages = await ConversationService.getConversationHistory(conversationId);
-        return MessagesSchema.parse(messages);
-      },
-      staleTime: 1000 * 60 * 5,
-    });
-  }, [conversationId, queryClient]);
+  const prefetchConversation = useCallback(
+    async (conversationId: string) => {
+      await queryClient.prefetchQuery({
+        queryKey: conversationKeys.messages(conversationId),
+        queryFn: async () => {
+          const conversation = await ConversationService.getConversationById(conversationId);
+          const messages = MessagesSchema.parse(conversation.messages);
+          return {
+            ...conversation,
+            messages,
+          };
+        },
+        staleTime: 1000 * 60 * 5,
+      });
+    },
+    [queryClient]
+  );
 
   return { prefetchConversation };
 }

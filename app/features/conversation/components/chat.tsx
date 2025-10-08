@@ -61,15 +61,6 @@ export function Chat({
 }: ChatProps) {
   return (
     <div className="flex flex-col min-w-0 h-[calc(100dvh-52px)] bg-background">
-      {/* New Chat button */}
-      <div className="flex justify-end px-4 pt-2">
-        <button
-          onClick={onNewConversation}
-          className="px-3 py-1.5 text-sm bg-zinc-800 hover:bg-zinc-700 text-white rounded-md transition-colors"
-        >
-          New Chat
-        </button>
-      </div>
       <div
         ref={messagesContainerRef}
         className="flex flex-col min-w-0 gap-6 flex-1 overflow-y-scroll pt-4"

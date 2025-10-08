@@ -34,44 +34,71 @@ export function useCreateConversationMutation() {
 }
 
 /**
- * Hook to delete a conversation
+ * Hook to delete a conversation with optimistic list updates
  */
 export function useDeleteConversationMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (conversationId: string) => {
-      return await ConversationService.deleteConversation(conversationId);
+      await ConversationService.deleteConversation(conversationId);
     },
     onMutate: async (conversationId) => {
-      // Cancel outgoing queries
+      // Cancel outgoing queries for detail and lists
       await queryClient.cancelQueries({
-        queryKey: conversationKeys.detail(conversationId)
+        queryKey: conversationKeys.detail(conversationId),
+      });
+      await queryClient.cancelQueries({
+        queryKey: conversationKeys.lists(),
       });
 
-      // Optimistically remove from cache
+      // Snapshot previous state for rollback
+      const previousLists = queryClient.getQueriesData({
+        queryKey: conversationKeys.lists(),
+      });
+
+      // Optimistically remove from all list caches
+      queryClient.setQueriesData(
+        { queryKey: conversationKeys.lists() },
+        (old: any) => {
+          if (!old || !Array.isArray(old)) return old;
+          return old.filter((conv: any) => conv.id !== conversationId);
+        }
+      );
+
+      // Optimistically remove detail cache
       queryClient.removeQueries({
-        queryKey: conversationKeys.detail(conversationId)
+        queryKey: conversationKeys.detail(conversationId),
       });
 
-      return { conversationId };
+      return { conversationId, previousLists };
     },
     onSuccess: (_, conversationId) => {
-      // Invalidate conversations list
+      // Invalidate conversations list to ensure consistency
       queryClient.invalidateQueries({
-        queryKey: conversationKeys.lists()
+        queryKey: conversationKeys.lists(),
       });
 
       console.log('Conversation deleted successfully:', conversationId);
       toast.success('Conversation deleted');
     },
-    onError: (error, conversationId) => {
+    onError: (error, conversationId, context) => {
       console.error('Failed to delete conversation:', error);
       toast.error('Failed to delete conversation');
 
-      // Refetch on error to restore state
+      // Rollback optimistic updates
+      if (context?.previousLists) {
+        context.previousLists.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
+
+      // Refetch to restore correct state
       queryClient.invalidateQueries({
-        queryKey: conversationKeys.detail(conversationId)
+        queryKey: conversationKeys.lists(),
+      });
+      queryClient.invalidateQueries({
+        queryKey: conversationKeys.detail(conversationId),
       });
     },
   });

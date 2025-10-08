@@ -4,7 +4,10 @@
 import { useChat } from 'ai/react';
 import { toast } from 'sonner';
 import { useConversationStorage } from './useConversationStorage';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import { ConversationService } from '../data/services/conversation.service';
+import { useQueryClient } from '@tanstack/react-query';
+import { conversationKeys } from './queries/useConversationQuery';
 import type { Message } from 'ai';
 
 export interface UseConversationOptions {
@@ -45,6 +48,9 @@ export function useConversation(options: UseConversationOptions = {}) {
 
   // Manage conversation storage
   const storage = useConversationStorage();
+
+  // Get query client for cache invalidation
+  const queryClient = useQueryClient();
 
   // Log component lifecycle
   useEffect(() => {
@@ -91,6 +97,7 @@ export function useConversation(options: UseConversationOptions = {}) {
     handleSubmit: originalHandleSubmit,
     handleInputChange,
   } = useChat({
+    id: storage.conversationId, // Use id to make useChat reactive to conversation changes
     initialMessages,
     api: '/api/conversations',
     maxSteps,
@@ -98,13 +105,30 @@ export function useConversation(options: UseConversationOptions = {}) {
       conversationId: storage.conversationId,
     },
     onError: handleError,
-    onFinish: (message) => {
-      console.log('Message completed:', message);
+    onFinish: async (message:Message) => {
+      console.log('[useConversation] Stream finished:', message);
+
       // Update conversation metadata
       storage.setMetadata({
         lastMessageAt: new Date().toISOString(),
         messageCount: messages.length + 1,
       });
+
+      // Invalidate conversation list cache to show the new/updated conversation
+      queryClient.invalidateQueries({ queryKey: conversationKeys.lists() });
+
+      // Refetch the conversation from the server to ensure UI is in sync with DB
+      try {
+        console.log('[useConversation] Refetching conversation to sync with DB...');
+        const conversation = await ConversationService.getConversationById(storage.conversationId);
+        console.log('[useConversation] Refetched conversation with', conversation.messages.length, 'messages');
+
+        // Update messages with the server state
+        setMessages(conversation.messages);
+      } catch (error) {
+        console.error('[useConversation] Failed to refetch conversation:', error);
+        // Don't show error to user - the streaming already worked
+      }
     },
   });
 
@@ -139,7 +163,6 @@ export function useConversation(options: UseConversationOptions = {}) {
     if (messages.length === 0 && onConversationStart) {
       onConversationStart(storage.conversationId);
     }
-
     // Call original handleSubmit - it accepts both signatures
     originalHandleSubmit(event as any, chatRequestOptions);
   }, [messages.length, onConversationStart, storage.conversationId, originalHandleSubmit]);
@@ -151,6 +174,66 @@ export function useConversation(options: UseConversationOptions = {}) {
     setMessages([]);
     console.log('Cleared messages for conversation:', storage.conversationId);
   }, [setMessages, storage.conversationId]);
+
+  /**
+   * Load conversation state for loading a conversation
+   */
+  const [isLoadingConversation, setIsLoadingConversation] = useState(false);
+  const [loadError, setLoadError] = useState<Error | null>(null);
+
+  /**
+   * Load a specific conversation by ID
+   */
+  const loadConversation = useCallback(
+    async (conversationId: string) => {
+      try {
+        setIsLoadingConversation(true);
+        setLoadError(null);
+
+        console.log('Loading conversation:', conversationId);
+
+        // Clear current messages
+        setMessages([]);
+
+        // Update storage to new conversation ID
+        storage.loadConversation(conversationId);
+
+        // Fetch conversation from API
+        const conversation = await ConversationService.getConversationById(conversationId);
+
+        // Set messages from conversation history
+        setMessages(conversation.messages);
+
+        console.log(
+          `Loaded conversation ${conversationId} with ${conversation.messages.length} messages`
+        );
+
+      } catch (error) {
+        const err = error as Error;
+        console.error('Failed to load conversation:', err);
+        setLoadError(err);
+
+        // User-friendly error messages
+        if (err.message.includes('404') || err.message.includes('not found')) {
+          toast.error('Conversation not found');
+        } else if (err.message.includes('Network')) {
+          toast.error('Network error. Please check your connection.');
+        } else {
+          toast.error('Failed to load conversation');
+        }
+      } finally {
+        setIsLoadingConversation(false);
+      }
+    },
+    [storage, setMessages]
+  );
+
+  /**
+   * Clear load error
+   */
+  const clearLoadError = useCallback(() => {
+    setLoadError(null);
+  }, []);
 
   /**
    * Check if conversation has messages
@@ -193,6 +276,10 @@ export function useConversation(options: UseConversationOptions = {}) {
     isUserLastMessage,
     isThinking,
 
+    // Loading state
+    isLoadingConversation,
+    loadError,
+
     // Message operations
     setMessages,
     setInput,
@@ -207,6 +294,8 @@ export function useConversation(options: UseConversationOptions = {}) {
 
     // Conversation operations
     startNewConversation,
+    loadConversation,
+    clearLoadError,
 
     // Storage operations
     getMetadata: storage.getMetadata,

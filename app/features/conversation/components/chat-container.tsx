@@ -3,41 +3,20 @@
 
 "use client";
 
+import { useEffect, useRef } from 'react';
 import { useConversation } from '../hooks/useConversation';
 import { useScrollToBottom } from '@/hooks/use-scroll-to-bottom';
 import { Chat } from './chat';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { useState } from 'react';
-
-// Create a stable QueryClient instance
-const createQueryClient = () => new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      retry: 1,
-    },
-  },
-});
+import { useConversationHandlers } from '../hooks/useConversationHandlers';
 
 /**
  * Container component that manages chat state and business logic
  * This is the smart component that uses hooks and passes props to the presentation component
  */
 export function ChatContainer() {
-  // Create QueryClient instance
-  const [queryClient] = useState(() => createQueryClient());
+  const { setHandlers } = useConversationHandlers();
+  const handlersSetRef = useRef(false);
 
-  return (
-    <QueryClientProvider client={queryClient}>
-      <ChatContainerInner />
-    </QueryClientProvider>
-  );
-}
-
-/**
- * Inner container to use hooks within QueryClientProvider context
- */
-function ChatContainerInner() {
   // Use the main conversation hook
   const conversation = useConversation({
     onConversationStart: (id) => {
@@ -50,6 +29,17 @@ function ChatContainerInner() {
       console.error('Conversation error:', error);
     },
   });
+
+  // Expose conversation control functions to layout via context (only once)
+  useEffect(() => {
+    if (!handlersSetRef.current) {
+      setHandlers({
+        startNewConversation: conversation.startNewConversation,
+        loadConversation: conversation.loadConversation,
+      });
+      handlersSetRef.current = true;
+    }
+  }, [setHandlers, conversation.startNewConversation, conversation.loadConversation]);
 
   // Scroll management
   const [messagesContainerRef, messagesEndRef] = useScrollToBottom<HTMLDivElement>();
