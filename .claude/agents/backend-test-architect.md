@@ -47,7 +47,7 @@ For Web Layer Testing (NextJS Specific):
 
 **Best Practices You Follow:**
 
-1. **Test Pyramid Adherence**: Focus primarily on unit tests, with fewer integration tests and minimal E2E tests
+1. **Test Pyramid Adherence**: Focus primarily on unit tests, with fewer integration tests
 2. **AAA Pattern**: Structure all tests with Arrange-Act-Assert sections clearly delineated
 3. **Test Isolation**: Each test must be completely independent and runnable in any order
 4. **Descriptive Naming**: Use behavior-driven test descriptions that explain what is being tested and expected outcome
