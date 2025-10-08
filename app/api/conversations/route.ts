@@ -4,20 +4,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { randomUUID } from 'crypto';
-import { DependencyContainer } from '@/src/infrastructure/config/DependencyContainer';
+import { getContainer } from '@/src/infrastructure/config/container';
 import { ChatRequestDto } from '@/src/application/dto/ChatRequestDto';
 /**
  * POST /api/conversations
  * Handles streaming chat completions with tool execution
  */
 export async function POST(request: NextRequest) {
-  let container: DependencyContainer;
-
   try {
-    // Initialize container
-    container = DependencyContainer.getInstance({
-      enableLogging: process.env.NODE_ENV === 'development',
-    });
+    // Get singleton container instance
+    const container = await getContainer();
 
     // Parse request body
     const body: ChatRequestDto = await request.json();
@@ -139,9 +135,7 @@ export async function POST(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    const container = DependencyContainer.getInstance({
-      enableLogging: false,
-    });
+    const container = await getContainer();
 
     const health = await container.healthCheck();
 

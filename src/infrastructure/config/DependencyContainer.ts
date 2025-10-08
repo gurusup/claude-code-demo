@@ -18,10 +18,14 @@ import { WeatherToolAdapter } from '../adapters/tools/WeatherToolAdapter';
 import { WeatherTool } from '../adapters/tools/WeatherTool';
 import { ToolRegistry } from '../adapters/tools/ToolRegistry';
 import { InMemoryConversationRepository } from '../repositories/InMemoryConversationRepository';
+import { MongoDBClient } from '../adapters/database/MongoDBClient';
+import { MongoDBConversationRepository } from '../adapters/database/MongoDBConversationRepository';
 
 export interface ContainerConfig {
   openaiApiKey?: string;
-  useInMemoryRepository?: boolean;
+  repositoryType?: 'mongodb' | 'inmemory';
+  mongodbUrl?: string;
+  databaseName?: string;
   enableLogging?: boolean;
 }
 
@@ -42,21 +46,29 @@ export class DependencyContainer {
   private manageConversationUseCase!: ManageConversationUseCase;
 
   private constructor(private config: ContainerConfig) {
-    this.initializeAdapters();
-    this.initializeUseCases();
+    // Initialization is now async, done via initialize()
   }
 
   /**
-   * Gets or creates the container instance
+   * Creates and initializes the container instance
    */
-  static getInstance(config?: ContainerConfig): DependencyContainer {
+  static async create(config?: ContainerConfig): Promise<DependencyContainer> {
     if (!DependencyContainer.instance) {
       if (!config) {
         throw new Error('Configuration required for first initialization');
       }
       DependencyContainer.instance = new DependencyContainer(config);
+      await DependencyContainer.instance.initialize();
     }
     return DependencyContainer.instance;
+  }
+
+  /**
+   * Initializes adapters and use cases (async)
+   */
+  private async initialize(): Promise<void> {
+    await this.initializeAdapters();
+    this.initializeUseCases();
   }
 
   /**
@@ -69,7 +81,7 @@ export class DependencyContainer {
   /**
    * Initializes all infrastructure adapters
    */
-  private initializeAdapters(): void {
+  private async initializeAdapters(): Promise<void> {
     // Get API key from config or environment
     const apiKey = this.config.openaiApiKey || process.env.OPENAI_API_KEY;
     if (!apiKey) {
@@ -85,13 +97,8 @@ export class DependencyContainer {
     // Initialize weather service
     this.weatherService = new WeatherToolAdapter();
 
-    // Initialize repository
-    if (this.config.useInMemoryRepository !== false) {
-      this.conversationRepository = new InMemoryConversationRepository();
-    } else {
-      // Future: Initialize database repository
-      this.conversationRepository = new InMemoryConversationRepository();
-    }
+    // Initialize repository with fallback strategy
+    await this.initializeRepository();
 
     // Initialize tool registry and register tools
     this.toolRegistry = new ToolRegistry();
@@ -99,6 +106,42 @@ export class DependencyContainer {
 
     if (this.config.enableLogging) {
       console.log('Infrastructure adapters initialized');
+    }
+  }
+
+  /**
+   * Initializes conversation repository with fallback to in-memory
+   */
+  private async initializeRepository(): Promise<void> {
+    const repositoryType = this.config.repositoryType || process.env.REPOSITORY_TYPE || 'inmemory';
+
+    if (repositoryType === 'mongodb') {
+      try {
+        const mongodbUrl = this.config.mongodbUrl || process.env.MONGODB_URL;
+        const databaseName = this.config.databaseName || process.env.DATABASE_NAME || 'ai_chat_app';
+
+        if (!mongodbUrl) {
+          throw new Error('MONGODB_URL not configured');
+        }
+
+        console.log('[DependencyContainer] Initializing MongoDB repository...');
+        const mongoClient = MongoDBClient.getInstance(mongodbUrl, databaseName);
+        await mongoClient.connect();
+
+        const db = mongoClient.getDatabase();
+        const repository = new MongoDBConversationRepository(db);
+        await repository.initialize();
+
+        this.conversationRepository = repository;
+        console.log('[DependencyContainer] MongoDB repository initialized successfully');
+      } catch (error) {
+        console.error('[DependencyContainer] Failed to initialize MongoDB repository:', error);
+        console.warn('[DependencyContainer] Falling back to InMemory repository');
+        this.conversationRepository = new InMemoryConversationRepository();
+      }
+    } else {
+      console.log('[DependencyContainer] Using InMemory repository');
+      this.conversationRepository = new InMemoryConversationRepository();
     }
   }
 
@@ -243,8 +286,8 @@ export class DependencyContainer {
   /**
    * Updates container configuration (requires reinitialization)
    */
-  static reconfigure(config: ContainerConfig): DependencyContainer {
+  static async reconfigure(config: ContainerConfig): Promise<DependencyContainer> {
     DependencyContainer.reset();
-    return DependencyContainer.getInstance(config);
+    return await DependencyContainer.create(config);
   }
 }

@@ -49,14 +49,15 @@ export const UpdateConversationSchema = z.object({
 });
 
 /**
- * Schema for conversation list response
+ * Schema for conversation list response (matches backend API)
  */
 export const ConversationListItemSchema = z.object({
   id: z.string(),
-  metadata: ConversationMetadataSchema,
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
-  lastMessage: z.string().optional(),
+  title: z.string(),
+  status: z.string(),
+  messageCount: z.number(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
 });
 
 export const ConversationListSchema = z.array(ConversationListItemSchema);
