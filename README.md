@@ -80,7 +80,10 @@ components/        # React components
 
 ## Environment Variables
 
-- `OPENAI_API_KEY` - Your OpenAI API key (required)
+- `OPENAI_API_KEY` =
+- `REPOSITORY_TYPE`="mongodb"
+- `MONGODB_URL`=
+- `DATABASE_NAME`=
 
 ## Learn More
 
