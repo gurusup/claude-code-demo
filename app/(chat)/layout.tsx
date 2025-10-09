@@ -49,7 +49,6 @@ function ChatLayoutContent({ children }: { children: React.ReactNode }) {
           onConversationSelect={handleConversationSelect}
         />
         <SidebarInset>
-          <Navbar />
           {children}
         </SidebarInset>
       </SidebarProvider>
