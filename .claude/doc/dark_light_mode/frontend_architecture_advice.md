@@ -26,7 +26,7 @@ The project uses a well-structured CSS variable system with:
 
 #### 1.1 Create Theme Provider Component
 
-**File**: `/Users/franciscopastor/Documents/repos/next-up-to-date-ai/components/theme-provider.tsx`
+**File**: `/Users/franciscopastor/Documents/repos/cabify-demo/components/theme-provider.tsx`
 
 ```typescript
 "use client";
@@ -47,7 +47,7 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
 
 #### 1.2 Integration in Root Layout
 
-**File**: `/Users/franciscopastor/Documents/repos/next-up-to-date-ai/app/layout.tsx`
+**File**: `/Users/franciscopastor/Documents/repos/cabify-demo/app/layout.tsx`
 
 **Current State** (Line 36):
 ```typescript

@@ -738,7 +738,7 @@ Before implementation:
 
 Ready for implementation. All architectural decisions documented with detailed implementation patterns, code examples, error handling strategies, performance guidelines, security practices, complete file structure, testing alignment, and production deployment considerations.
 
-**Document Location**: `/Users/franciscopastor/Documents/repos/next-up-to-date-ai/.claude/doc/chat_history/backend.md`
+**Document Location**: `/Users/franciscopastor/Documents/repos/cabify-demo/.claude/doc/chat_history/backend.md`
 
 ---
 

@@ -1026,9 +1026,9 @@ it('should handle keyboard navigation when user presses Enter', async () => {})
 - [ARIA Authoring Practices Guide](https://www.w3.org/WAI/ARIA/apg/)
 
 ### Related Files to Reference
-- `/Users/franciscopastor/Documents/repos/next-up-to-date-ai/components/ui/button.tsx` - Button component pattern
-- `/Users/franciscopastor/Documents/repos/next-up-to-date-ai/components/navbar.tsx` - Navbar integration point
-- `/Users/franciscopastor/Documents/repos/next-up-to-date-ai/app/layout.tsx` - Root layout for provider injection
+- `/Users/franciscopastor/Documents/repos/cabify-demo/components/ui/button.tsx` - Button component pattern
+- `/Users/franciscopastor/Documents/repos/cabify-demo/components/navbar.tsx` - Navbar integration point
+- `/Users/franciscopastor/Documents/repos/cabify-demo/app/layout.tsx` - Root layout for provider injection
 
 ---
 

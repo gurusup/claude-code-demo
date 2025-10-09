@@ -29,7 +29,7 @@ This is a Next.js application that demonstrates AI chat functionality with strea
 1. Clone the repository:
 ```bash
 git clone <your-repo-url>
-cd next-up-to-date-ai
+cd cabify-demo
 ```
 
 2. Install dependencies:
