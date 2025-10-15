@@ -162,6 +162,31 @@ Located at: `app/features/conversation/hooks/useConversation.tsx:37`
 - CSS variables enabled for theming
 - Components auto-imported to `@/components/ui`
 
+### Theme Management
+
+The application supports light and dark themes with the following features:
+
+**Implementation:**
+- **Library**: next-themes v0.2.1
+- **Pattern**: Two-state toggle (Light ↔ Dark)
+- **Default**: System preference (respects OS-level dark mode)
+- **Persistence**: localStorage (key: "theme")
+- **Location**: Theme toggle in navbar (top-right)
+
+**Architecture:**
+- **Provider**: `components/theme-provider.tsx` (wraps app at root)
+- **Toggle**: `components/theme-toggle.tsx` (simple button component)
+- **Integration**: Infrastructure-level concern (not a feature)
+
+**Usage:**
+Users can toggle between light and dark modes by clicking the Sun/Moon icon in the navbar. The preference persists across sessions.
+
+**Developer Notes:**
+- Theme is client-only state (no server synchronization)
+- Uses next-themes directly (no custom wrappers)
+- CSS variables defined in `app/globals.css`
+- Tailwind configured with `darkMode: ['class']`
+
 ## Adding New Features
 
 ### Adding a New Tool
@@ -186,8 +211,6 @@ npx shadcn-ui@latest add [component-name]
 ```
 
 Components are automatically configured for the project's path aliases.
-
-## Sub-Agent Workflow
 
 ## Rules
 - After a plan mode phase you should create a `.claude/sessions/context_session_{feature_name}.md` with the definition of the plan
